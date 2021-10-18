@@ -1,0 +1,3 @@
+C:\Users\pinez\source\repos\NumericLab1\NumericLab1\Debug\NumericLab1.vcxproj.AssemblyReference.cache
+C:\Users\pinez\source\repos\NumericLab1\NumericLab1\Debug\NumericLab1.MainForm.resources
+C:\Users\pinez\source\repos\NumericLab1\NumericLab1\Debug\NumericLab1.vcxproj.GenerateResource.cache

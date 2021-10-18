@@ -1,0 +1,7 @@
+﻿  MainForm.cpp
+C:\Users\pinez\Downloads\git\numerical_lab_1\NumericLab1\MainForm.cpp(10,33): warning C4829: Возможно, неправильные параметры функции main. Рекомендуемый вариант - "int main(Platform::Array<Platform::String^>^ argv)"
+  numerical.cpp
+  .NETFramework,Version=v4.6.1.AssemblyAttributes.cpp
+  Создание кода...
+  MainForm.obj : обнаружен модуль MSIL; для MSIL последовательная компоновка отключена; выполняется полная компоновка
+  NumericLab1.vcxproj -> C:\Users\pinez\Downloads\git\numerical_lab_1\x64\Debug\NumericLab1.exe
