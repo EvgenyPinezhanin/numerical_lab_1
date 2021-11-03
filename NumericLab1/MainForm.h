@@ -15,11 +15,6 @@ namespace NumericLab1 {
 	using namespace System::Drawing;
 	using namespace System::Reflection;
 
-	const double maxD = 79228162514264337593543950335.0;
-	const double minD = 0.00000000000000000000000000001;
-	const int startSizeArray = 10001;
-	int currSizeArray = startSizeArray;
-
 	// функция для установки Control двойной буфферизации
 	void SetDoubleBuffered(Control^ c, bool value) {
 		PropertyInfo ^pi = (Control::typeid)->GetProperty("DoubleBuffered", BindingFlags::SetProperty | BindingFlags::Instance | BindingFlags::NonPublic);
@@ -31,17 +26,20 @@ namespace NumericLab1 {
 	// Функция для проверки, что переменная типа double лежит в диапазоне чисел decimal
 	// Нужна при рисовании точек на графике
 	bool rangeOfDec(double d) {
-		if (abs(d) >= minD && abs(d) <= maxD) {
+		static double maxD = 79228162514264337593543950335.0;
+		static double minD = 0.00000000000000000000000000001;
+		if ((abs(d) >= minD && abs(d) <= maxD) || d == 0.0) {
 			return true;
 		}
 		return false;
 	}
 
 	template<typename T>
-	int max(T *arr, int N) {
+	int max(const vector<T> &arr) {
+		if (arr.empty()) return -1;
 		T m = arr[0];
 		int ind = 0;
-		for (int i = 1; i < N; i++) {
+		for (int i = 1; i < arr.size(); i++) {
 			if (arr[i] > m) {
 				m = arr[i];
 				ind = i;
@@ -51,10 +49,11 @@ namespace NumericLab1 {
 	}
 
 	template<typename T>
-	int min(T* arr, int N) {
+	int min(const vector<T> &arr) {
+		if (arr.empty()) return -1;
 		T m = arr[0];
 		int ind = 0;
-		for (int i = 1; i < N; i++) {
+		for (int i = 1; i < arr.size(); i++) {
 			if (arr[i] < m) {
 				m = arr[i];
 				ind = i;
@@ -64,17 +63,17 @@ namespace NumericLab1 {
 	}
 
 	template<typename T>
-	int sum(T* arr, int N) {
+	int sum(const vector<T> &arr) {
 		T sum = T(0);
-		for (int i = 0; i < N; i++) {
+		for (int i = 0; i < arr.size(); i++) {
 			sum += arr[i];
 		}
 		return sum;
 	}
 
 	template<typename T>
-	void abs_arr(T* arr, int N) {
-		for (int i = 0; i < N; i++) {
+	void abs_arr(vector<T> &arr) {
+		for (int i = 0; i < arr.size(); i++) {
 			arr[i] = abs(arr[i]);
 		}
 	}
@@ -103,19 +102,23 @@ namespace NumericLab1 {
 
 	public ref class MainForm : public System::Windows::Forms::Form {
 	public:
-		double* X;
-		double* V, *V_1;
-		double* V2, *V2_1;
-		double* OLP_Arr;
-		double* H;
-		int* C1_Arr;
-		int* C2_Arr;
-		double* U;
-		double* U_V;
+		vector<double> *X;
+		vector<vector<double>> *V;
+		vector<vector<double>> *V2;
+		vector<double> *OLP_Arr;
+		vector<double> *H;
+		vector<int> *C1_Arr;
+		vector<int> *C2_Arr;
+		vector<double>* U;
+		vector<double>* U_V;
 
-		double x, b, eps, h;
+		double b, Egr, eps, h;
 		int Nmax, N;
 		bool local_error_control;
+
+		rk4_method* rk4_test;
+		rk4_method* rk4_one;
+		rk4_method* rk4_two;
 
 		Resources::ResourceManager^ s_pxResourceManager;
 		String^ strTask;
@@ -131,17 +134,21 @@ namespace NumericLab1 {
 			SetDoubleBuffered(Chart2, true);
 			SetDoubleBuffered(Chart3, true);
 
-			X = new double[startSizeArray];
-			V = new double[startSizeArray];
-			V2 = new double[startSizeArray];
-			OLP_Arr = new double[startSizeArray];
-			H = new double[startSizeArray];
-			C1_Arr = new int[startSizeArray];
-			C2_Arr = new int[startSizeArray];
-			U = new double[startSizeArray];
-			U_V = new double[startSizeArray];
-			V_1 = new double[startSizeArray];
-			V2_1 = new double[startSizeArray];
+			X = new vector<double>();
+			V = new vector<vector<double>>();
+			V->resize(2);
+			V2 = new vector<vector<double>>();
+			V2->resize(2);
+			OLP_Arr = new vector<double>();
+			H = new vector<double>();
+			C1_Arr = new vector<int>();
+			C2_Arr = new vector<int>();
+			U = new vector<double>();
+			U_V = new vector<double>();
+
+			rk4_test = new rk4_method(f_test);
+			rk4_one = new rk4_method(f);
+			rk4_two = new rk4_method(f1, f2);
 
 			// Нужно для получения картинок из resource.resx
 			Reflection::Assembly^ pxAssembly = Reflection::Assembly::GetExecutingAssembly();
@@ -168,16 +175,16 @@ namespace NumericLab1 {
 	private: System::Windows::Forms::GroupBox^ DuBox;
 	private: System::Windows::Forms::Button^ StartButton;
 	private: System::Windows::Forms::Panel^ ParametersPanel;
-	private: System::Windows::Forms::TextBox^ BorderTextBox;
+	private: System::Windows::Forms::TextBox^ EgrTextBox;
 	private: System::Windows::Forms::Label^ StepLabel;
 	private: System::Windows::Forms::Label^ CountMaxLabel;
-	private: System::Windows::Forms::Label^ ParametrLabel;
-	private: System::Windows::Forms::Label^ BorderLabel;
-	private: System::Windows::Forms::TextBox^ ErrorTextBox;
+	private: System::Windows::Forms::Label^ ELabel;
+	private: System::Windows::Forms::Label^ EgrLabel;
+	private: System::Windows::Forms::TextBox^ ETextBox;
 	private: System::Windows::Forms::TextBox^ CountMaxTextBox;
 	private: System::Windows::Forms::TextBox^ U0TextBox;
-	private: System::Windows::Forms::TextBox^ XTextBox;
-	private: System::Windows::Forms::Label^ XLabel;
+	private: System::Windows::Forms::TextBox^ bTextBox;
+	private: System::Windows::Forms::Label^ bLabel;
 	private: System::Windows::Forms::TextBox^ X0TextBox;
 	private: System::Windows::Forms::Label^ U0Label;
 	private: System::Windows::Forms::Label^ X0Label;
@@ -194,14 +201,11 @@ namespace NumericLab1 {
 	private: System::Windows::Forms::DataGridViewTextBoxColumn^ i;
 	private: System::Windows::Forms::DataGridViewTextBoxColumn^ Xi;
 	private: System::Windows::Forms::DataGridViewTextBoxColumn^ Vi;
-	private: System::Windows::Forms::DataGridViewTextBoxColumn^ Vi1;
-	private: System::Windows::Forms::DataGridViewTextBoxColumn^ Vi2;
+	private: System::Windows::Forms::DataGridViewTextBoxColumn^ Vdi;
 	private: System::Windows::Forms::DataGridViewTextBoxColumn^ V2i;
-	private: System::Windows::Forms::DataGridViewTextBoxColumn^ V2i1;
-	private: System::Windows::Forms::DataGridViewTextBoxColumn^ V2i2;
+	private: System::Windows::Forms::DataGridViewTextBoxColumn^ V2di;
 	private: System::Windows::Forms::DataGridViewTextBoxColumn^ Vi_V2i;
-	private: System::Windows::Forms::DataGridViewTextBoxColumn^ Vi1_V2i1;
-	private: System::Windows::Forms::DataGridViewTextBoxColumn^ Vi2_V2i2;
+	private: System::Windows::Forms::DataGridViewTextBoxColumn^ Vdi_V2di;
 	private: System::Windows::Forms::DataGridViewTextBoxColumn^ OLP;
 	private: System::Windows::Forms::DataGridViewTextBoxColumn^ Hi;
 	private: System::Windows::Forms::DataGridViewTextBoxColumn^ C1;
@@ -231,22 +235,17 @@ namespace NumericLab1 {
 	private: System::Windows::Forms::Label^ C2Label;
 	private: System::Windows::Forms::Label^ PriX2Label;
 	private: System::Windows::Forms::Label^ MinHResLabel;
-	private: System::Windows::Forms::TextBox^ ATextBox;
-	private: System::Windows::Forms::Label^ BLabel;
-	private: System::Windows::Forms::Label^ ALabel;
+	private: System::Windows::Forms::TextBox^ ASysTextBox;
+	private: System::Windows::Forms::Label^ BSysLabel;
+	private: System::Windows::Forms::Label^ ASysLabel;
 	private: System::Windows::Forms::TextBox^ Ud0TextBox;
 	private: System::Windows::Forms::Label^ Ud0Label;
-	private: System::Windows::Forms::TextBox^ BTextBox;
+	private: System::Windows::Forms::TextBox^ BSysTextBox;
 	private: System::Windows::Forms::DataVisualization::Charting::Chart^ Chart2;
 	private: System::Windows::Forms::DataVisualization::Charting::Chart^ Chart1;
 	private: System::Windows::Forms::PictureBox^ PictureDU;
+	private: System::ComponentModel::IContainer^ components;
 #pragma endregion
-
-	private:
-		/// <summary>
-		/// Обязательная переменная конструктора.
-		/// </summary>
-		System::ComponentModel::Container ^components;
 
 #pragma region Windows Form Designer generated code
 		/// <summary>
@@ -259,24 +258,26 @@ namespace NumericLab1 {
 			System::Windows::Forms::DataVisualization::Charting::Legend^ legend1 = (gcnew System::Windows::Forms::DataVisualization::Charting::Legend());
 			System::Windows::Forms::DataVisualization::Charting::Series^ series1 = (gcnew System::Windows::Forms::DataVisualization::Charting::Series());
 			System::Windows::Forms::DataVisualization::Charting::Series^ series2 = (gcnew System::Windows::Forms::DataVisualization::Charting::Series());
+			System::Windows::Forms::DataVisualization::Charting::Title^ title1 = (gcnew System::Windows::Forms::DataVisualization::Charting::Title());
 			System::Windows::Forms::DataVisualization::Charting::ChartArea^ chartArea2 = (gcnew System::Windows::Forms::DataVisualization::Charting::ChartArea());
 			System::Windows::Forms::DataVisualization::Charting::Legend^ legend2 = (gcnew System::Windows::Forms::DataVisualization::Charting::Legend());
 			System::Windows::Forms::DataVisualization::Charting::Series^ series3 = (gcnew System::Windows::Forms::DataVisualization::Charting::Series());
+			System::Windows::Forms::DataVisualization::Charting::Title^ title2 = (gcnew System::Windows::Forms::DataVisualization::Charting::Title());
 			System::Windows::Forms::DataVisualization::Charting::ChartArea^ chartArea3 = (gcnew System::Windows::Forms::DataVisualization::Charting::ChartArea());
 			System::Windows::Forms::DataVisualization::Charting::Legend^ legend3 = (gcnew System::Windows::Forms::DataVisualization::Charting::Legend());
 			System::Windows::Forms::DataVisualization::Charting::Series^ series4 = (gcnew System::Windows::Forms::DataVisualization::Charting::Series());
+			System::Windows::Forms::DataVisualization::Charting::Title^ title3 = (gcnew System::Windows::Forms::DataVisualization::Charting::Title());
 			System::Windows::Forms::DataVisualization::Charting::ChartArea^ chartArea4 = (gcnew System::Windows::Forms::DataVisualization::Charting::ChartArea());
 			System::Windows::Forms::DataVisualization::Charting::Legend^ legend4 = (gcnew System::Windows::Forms::DataVisualization::Charting::Legend());
 			System::Windows::Forms::DataVisualization::Charting::Series^ series5 = (gcnew System::Windows::Forms::DataVisualization::Charting::Series());
+			System::Windows::Forms::DataVisualization::Charting::Title^ title4 = (gcnew System::Windows::Forms::DataVisualization::Charting::Title());
 			this->MainPanel = (gcnew System::Windows::Forms::Panel());
-			this->BTextBox = (gcnew System::Windows::Forms::TextBox());
-			this->ATextBox = (gcnew System::Windows::Forms::TextBox());
-			this->BLabel = (gcnew System::Windows::Forms::Label());
-			this->ALabel = (gcnew System::Windows::Forms::Label());
+			this->BSysTextBox = (gcnew System::Windows::Forms::TextBox());
+			this->ASysTextBox = (gcnew System::Windows::Forms::TextBox());
+			this->BSysLabel = (gcnew System::Windows::Forms::Label());
+			this->ASysLabel = (gcnew System::Windows::Forms::Label());
 			this->Ud0TextBox = (gcnew System::Windows::Forms::TextBox());
 			this->Ud0Label = (gcnew System::Windows::Forms::Label());
-			this->XTextBox = (gcnew System::Windows::Forms::TextBox());
-			this->XLabel = (gcnew System::Windows::Forms::Label());
 			this->U0TextBox = (gcnew System::Windows::Forms::TextBox());
 			this->X0TextBox = (gcnew System::Windows::Forms::TextBox());
 			this->U0Label = (gcnew System::Windows::Forms::Label());
@@ -287,15 +288,17 @@ namespace NumericLab1 {
 			this->PictureDU = (gcnew System::Windows::Forms::PictureBox());
 			this->TaskBox = (gcnew System::Windows::Forms::GroupBox());
 			this->TaskComboBox = (gcnew System::Windows::Forms::ComboBox());
+			this->bTextBox = (gcnew System::Windows::Forms::TextBox());
+			this->bLabel = (gcnew System::Windows::Forms::Label());
 			this->ParametersPanel = (gcnew System::Windows::Forms::Panel());
 			this->StepTextBox = (gcnew System::Windows::Forms::TextBox());
 			this->CountMaxTextBox = (gcnew System::Windows::Forms::TextBox());
-			this->ErrorTextBox = (gcnew System::Windows::Forms::TextBox());
-			this->BorderTextBox = (gcnew System::Windows::Forms::TextBox());
+			this->ETextBox = (gcnew System::Windows::Forms::TextBox());
+			this->EgrTextBox = (gcnew System::Windows::Forms::TextBox());
 			this->StepLabel = (gcnew System::Windows::Forms::Label());
 			this->CountMaxLabel = (gcnew System::Windows::Forms::Label());
-			this->ParametrLabel = (gcnew System::Windows::Forms::Label());
-			this->BorderLabel = (gcnew System::Windows::Forms::Label());
+			this->ELabel = (gcnew System::Windows::Forms::Label());
+			this->EgrLabel = (gcnew System::Windows::Forms::Label());
 			this->ReferenceBox = (gcnew System::Windows::Forms::GroupBox());
 			this->PriX2Label = (gcnew System::Windows::Forms::Label());
 			this->MinHResLabel = (gcnew System::Windows::Forms::Label());
@@ -323,14 +326,11 @@ namespace NumericLab1 {
 			this->i = (gcnew System::Windows::Forms::DataGridViewTextBoxColumn());
 			this->Xi = (gcnew System::Windows::Forms::DataGridViewTextBoxColumn());
 			this->Vi = (gcnew System::Windows::Forms::DataGridViewTextBoxColumn());
-			this->Vi1 = (gcnew System::Windows::Forms::DataGridViewTextBoxColumn());
-			this->Vi2 = (gcnew System::Windows::Forms::DataGridViewTextBoxColumn());
+			this->Vdi = (gcnew System::Windows::Forms::DataGridViewTextBoxColumn());
 			this->V2i = (gcnew System::Windows::Forms::DataGridViewTextBoxColumn());
-			this->V2i1 = (gcnew System::Windows::Forms::DataGridViewTextBoxColumn());
-			this->V2i2 = (gcnew System::Windows::Forms::DataGridViewTextBoxColumn());
+			this->V2di = (gcnew System::Windows::Forms::DataGridViewTextBoxColumn());
 			this->Vi_V2i = (gcnew System::Windows::Forms::DataGridViewTextBoxColumn());
-			this->Vi1_V2i1 = (gcnew System::Windows::Forms::DataGridViewTextBoxColumn());
-			this->Vi2_V2i2 = (gcnew System::Windows::Forms::DataGridViewTextBoxColumn());
+			this->Vdi_V2di = (gcnew System::Windows::Forms::DataGridViewTextBoxColumn());
 			this->OLP = (gcnew System::Windows::Forms::DataGridViewTextBoxColumn());
 			this->Hi = (gcnew System::Windows::Forms::DataGridViewTextBoxColumn());
 			this->C1 = (gcnew System::Windows::Forms::DataGridViewTextBoxColumn());
@@ -369,14 +369,12 @@ namespace NumericLab1 {
 			// MainPanel
 			// 
 			this->MainPanel->BorderStyle = System::Windows::Forms::BorderStyle::FixedSingle;
-			this->MainPanel->Controls->Add(this->BTextBox);
-			this->MainPanel->Controls->Add(this->ATextBox);
-			this->MainPanel->Controls->Add(this->BLabel);
-			this->MainPanel->Controls->Add(this->ALabel);
+			this->MainPanel->Controls->Add(this->BSysTextBox);
+			this->MainPanel->Controls->Add(this->ASysTextBox);
+			this->MainPanel->Controls->Add(this->BSysLabel);
+			this->MainPanel->Controls->Add(this->ASysLabel);
 			this->MainPanel->Controls->Add(this->Ud0TextBox);
 			this->MainPanel->Controls->Add(this->Ud0Label);
-			this->MainPanel->Controls->Add(this->XTextBox);
-			this->MainPanel->Controls->Add(this->XLabel);
 			this->MainPanel->Controls->Add(this->U0TextBox);
 			this->MainPanel->Controls->Add(this->X0TextBox);
 			this->MainPanel->Controls->Add(this->U0Label);
@@ -391,48 +389,48 @@ namespace NumericLab1 {
 			this->MainPanel->Size = System::Drawing::Size(500, 189);
 			this->MainPanel->TabIndex = 0;
 			// 
-			// BTextBox
+			// BSysTextBox
 			// 
-			this->BTextBox->Enabled = false;
-			this->BTextBox->Location = System::Drawing::Point(146, 137);
-			this->BTextBox->Name = L"BTextBox";
-			this->BTextBox->Size = System::Drawing::Size(83, 22);
-			this->BTextBox->TabIndex = 16;
-			this->BTextBox->Text = L"1";
+			this->BSysTextBox->Enabled = false;
+			this->BSysTextBox->Location = System::Drawing::Point(146, 137);
+			this->BSysTextBox->Name = L"BSysTextBox";
+			this->BSysTextBox->Size = System::Drawing::Size(79, 22);
+			this->BSysTextBox->TabIndex = 16;
+			this->BSysTextBox->Text = L"1";
 			// 
-			// ATextBox
+			// ASysTextBox
 			// 
-			this->ATextBox->Enabled = false;
-			this->ATextBox->Location = System::Drawing::Point(34, 137);
-			this->ATextBox->Name = L"ATextBox";
-			this->ATextBox->Size = System::Drawing::Size(79, 22);
-			this->ATextBox->TabIndex = 15;
-			this->ATextBox->Text = L"1";
+			this->ASysTextBox->Enabled = false;
+			this->ASysTextBox->Location = System::Drawing::Point(34, 137);
+			this->ASysTextBox->Name = L"ASysTextBox";
+			this->ASysTextBox->Size = System::Drawing::Size(79, 22);
+			this->ASysTextBox->TabIndex = 15;
+			this->ASysTextBox->Text = L"1";
 			// 
-			// BLabel
+			// BSysLabel
 			// 
-			this->BLabel->AutoSize = true;
-			this->BLabel->Enabled = false;
-			this->BLabel->Location = System::Drawing::Point(119, 140);
-			this->BLabel->Name = L"BLabel";
-			this->BLabel->Size = System::Drawing::Size(16, 17);
-			this->BLabel->TabIndex = 14;
-			this->BLabel->Text = L"b";
+			this->BSysLabel->AutoSize = true;
+			this->BSysLabel->Enabled = false;
+			this->BSysLabel->Location = System::Drawing::Point(121, 140);
+			this->BSysLabel->Name = L"BSysLabel";
+			this->BSysLabel->Size = System::Drawing::Size(16, 17);
+			this->BSysLabel->TabIndex = 14;
+			this->BSysLabel->Text = L"b";
 			// 
-			// ALabel
+			// ASysLabel
 			// 
-			this->ALabel->AutoSize = true;
-			this->ALabel->Enabled = false;
-			this->ALabel->Location = System::Drawing::Point(12, 140);
-			this->ALabel->Name = L"ALabel";
-			this->ALabel->Size = System::Drawing::Size(16, 17);
-			this->ALabel->TabIndex = 13;
-			this->ALabel->Text = L"a";
+			this->ASysLabel->AutoSize = true;
+			this->ASysLabel->Enabled = false;
+			this->ASysLabel->Location = System::Drawing::Point(6, 140);
+			this->ASysLabel->Name = L"ASysLabel";
+			this->ASysLabel->Size = System::Drawing::Size(16, 17);
+			this->ASysLabel->TabIndex = 13;
+			this->ASysLabel->Text = L"a";
 			// 
 			// Ud0TextBox
 			// 
 			this->Ud0TextBox->Enabled = false;
-			this->Ud0TextBox->Location = System::Drawing::Point(381, 99);
+			this->Ud0TextBox->Location = System::Drawing::Point(263, 99);
 			this->Ud0TextBox->Name = L"Ud0TextBox";
 			this->Ud0TextBox->Size = System::Drawing::Size(83, 22);
 			this->Ud0TextBox->TabIndex = 12;
@@ -442,32 +440,15 @@ namespace NumericLab1 {
 			// 
 			this->Ud0Label->AutoSize = true;
 			this->Ud0Label->Enabled = false;
-			this->Ud0Label->Location = System::Drawing::Point(349, 102);
+			this->Ud0Label->Location = System::Drawing::Point(231, 102);
 			this->Ud0Label->Name = L"Ud0Label";
-			this->Ud0Label->Size = System::Drawing::Size(26, 17);
+			this->Ud0Label->Size = System::Drawing::Size(24, 17);
 			this->Ud0Label->TabIndex = 11;
-			this->Ud0Label->Text = L"U\'₀";
-			// 
-			// XTextBox
-			// 
-			this->XTextBox->Location = System::Drawing::Point(146, 99);
-			this->XTextBox->Name = L"XTextBox";
-			this->XTextBox->Size = System::Drawing::Size(83, 22);
-			this->XTextBox->TabIndex = 10;
-			this->XTextBox->Text = L"1";
-			// 
-			// XLabel
-			// 
-			this->XLabel->AutoSize = true;
-			this->XLabel->Location = System::Drawing::Point(119, 102);
-			this->XLabel->Name = L"XLabel";
-			this->XLabel->Size = System::Drawing::Size(17, 17);
-			this->XLabel->TabIndex = 9;
-			this->XLabel->Text = L"X";
+			this->Ud0Label->Text = L"u\'₀";
 			// 
 			// U0TextBox
 			// 
-			this->U0TextBox->Location = System::Drawing::Point(264, 99);
+			this->U0TextBox->Location = System::Drawing::Point(146, 99);
 			this->U0TextBox->Name = L"U0TextBox";
 			this->U0TextBox->Size = System::Drawing::Size(79, 22);
 			this->U0TextBox->TabIndex = 8;
@@ -484,20 +465,20 @@ namespace NumericLab1 {
 			// U0Label
 			// 
 			this->U0Label->AutoSize = true;
-			this->U0Label->Location = System::Drawing::Point(235, 102);
+			this->U0Label->Location = System::Drawing::Point(119, 102);
 			this->U0Label->Name = L"U0Label";
-			this->U0Label->Size = System::Drawing::Size(23, 17);
+			this->U0Label->Size = System::Drawing::Size(21, 17);
 			this->U0Label->TabIndex = 6;
-			this->U0Label->Text = L"U₀";
+			this->U0Label->Text = L"u₀";
 			// 
 			// X0Label
 			// 
 			this->X0Label->AutoSize = true;
 			this->X0Label->Location = System::Drawing::Point(6, 102);
 			this->X0Label->Name = L"X0Label";
-			this->X0Label->Size = System::Drawing::Size(22, 17);
+			this->X0Label->Size = System::Drawing::Size(19, 17);
 			this->X0Label->TabIndex = 5;
-			this->X0Label->Text = L"X₀";
+			this->X0Label->Text = L"x₀";
 			// 
 			// ErrorCheckBox
 			// 
@@ -514,7 +495,7 @@ namespace NumericLab1 {
 			// 
 			this->StartButton->Font = (gcnew System::Drawing::Font(L"Microsoft Sans Serif", 13.8F, System::Drawing::FontStyle::Regular, System::Drawing::GraphicsUnit::Point,
 				static_cast<System::Byte>(204)));
-			this->StartButton->Location = System::Drawing::Point(297, 127);
+			this->StartButton->Location = System::Drawing::Point(341, 127);
 			this->StartButton->Name = L"StartButton";
 			this->StartButton->Size = System::Drawing::Size(127, 48);
 			this->StartButton->TabIndex = 2;
@@ -563,17 +544,36 @@ namespace NumericLab1 {
 			this->TaskComboBox->Text = L"Тестовая";
 			this->TaskComboBox->SelectedIndexChanged += gcnew System::EventHandler(this, &MainForm::TaskComboBox_SelectedIndexChanged);
 			// 
+			// bTextBox
+			// 
+			this->bTextBox->Location = System::Drawing::Point(314, 59);
+			this->bTextBox->Name = L"bTextBox";
+			this->bTextBox->Size = System::Drawing::Size(144, 22);
+			this->bTextBox->TabIndex = 10;
+			this->bTextBox->Text = L"1";
+			// 
+			// bLabel
+			// 
+			this->bLabel->AutoSize = true;
+			this->bLabel->Location = System::Drawing::Point(3, 62);
+			this->bLabel->Name = L"bLabel";
+			this->bLabel->Size = System::Drawing::Size(241, 17);
+			this->bLabel->TabIndex = 9;
+			this->bLabel->Text = L"Правая граница интегрирования, b";
+			// 
 			// ParametersPanel
 			// 
 			this->ParametersPanel->BorderStyle = System::Windows::Forms::BorderStyle::FixedSingle;
 			this->ParametersPanel->Controls->Add(this->StepTextBox);
 			this->ParametersPanel->Controls->Add(this->CountMaxTextBox);
-			this->ParametersPanel->Controls->Add(this->ErrorTextBox);
-			this->ParametersPanel->Controls->Add(this->BorderTextBox);
+			this->ParametersPanel->Controls->Add(this->ETextBox);
+			this->ParametersPanel->Controls->Add(this->EgrTextBox);
 			this->ParametersPanel->Controls->Add(this->StepLabel);
 			this->ParametersPanel->Controls->Add(this->CountMaxLabel);
-			this->ParametersPanel->Controls->Add(this->ParametrLabel);
-			this->ParametersPanel->Controls->Add(this->BorderLabel);
+			this->ParametersPanel->Controls->Add(this->bTextBox);
+			this->ParametersPanel->Controls->Add(this->ELabel);
+			this->ParametersPanel->Controls->Add(this->bLabel);
+			this->ParametersPanel->Controls->Add(this->EgrLabel);
 			this->ParametersPanel->Dock = System::Windows::Forms::DockStyle::Fill;
 			this->ParametersPanel->Location = System::Drawing::Point(509, 3);
 			this->ParametersPanel->Name = L"ParametersPanel";
@@ -582,7 +582,7 @@ namespace NumericLab1 {
 			// 
 			// StepTextBox
 			// 
-			this->StepTextBox->Location = System::Drawing::Point(314, 87);
+			this->StepTextBox->Location = System::Drawing::Point(314, 3);
 			this->StepTextBox->Name = L"StepTextBox";
 			this->StepTextBox->Size = System::Drawing::Size(144, 22);
 			this->StepTextBox->TabIndex = 7;
@@ -596,58 +596,58 @@ namespace NumericLab1 {
 			this->CountMaxTextBox->TabIndex = 6;
 			this->CountMaxTextBox->Text = L"10000";
 			// 
-			// ErrorTextBox
+			// ETextBox
 			// 
-			this->ErrorTextBox->Enabled = false;
-			this->ErrorTextBox->Location = System::Drawing::Point(314, 59);
-			this->ErrorTextBox->Name = L"ErrorTextBox";
-			this->ErrorTextBox->Size = System::Drawing::Size(144, 22);
-			this->ErrorTextBox->TabIndex = 5;
-			this->ErrorTextBox->Text = L"0.0000001";
+			this->ETextBox->Enabled = false;
+			this->ETextBox->Location = System::Drawing::Point(314, 115);
+			this->ETextBox->Name = L"ETextBox";
+			this->ETextBox->Size = System::Drawing::Size(144, 22);
+			this->ETextBox->TabIndex = 5;
+			this->ETextBox->Text = L"0.0000001";
 			// 
-			// BorderTextBox
+			// EgrTextBox
 			// 
-			this->BorderTextBox->Location = System::Drawing::Point(314, 2);
-			this->BorderTextBox->Name = L"BorderTextBox";
-			this->BorderTextBox->Size = System::Drawing::Size(144, 22);
-			this->BorderTextBox->TabIndex = 4;
-			this->BorderTextBox->Text = L"0.00000001";
+			this->EgrTextBox->Location = System::Drawing::Point(314, 87);
+			this->EgrTextBox->Name = L"EgrTextBox";
+			this->EgrTextBox->Size = System::Drawing::Size(144, 22);
+			this->EgrTextBox->TabIndex = 4;
+			this->EgrTextBox->Text = L"0.00000001";
 			// 
 			// StepLabel
 			// 
 			this->StepLabel->AutoSize = true;
-			this->StepLabel->Location = System::Drawing::Point(3, 90);
+			this->StepLabel->Location = System::Drawing::Point(3, 6);
 			this->StepLabel->Name = L"StepLabel";
-			this->StepLabel->Size = System::Drawing::Size(111, 17);
+			this->StepLabel->Size = System::Drawing::Size(132, 17);
 			this->StepLabel->TabIndex = 3;
-			this->StepLabel->Text = L"Начальный шаг";
+			this->StepLabel->Text = L"Начальный шаг, h₀";
 			// 
 			// CountMaxLabel
 			// 
 			this->CountMaxLabel->AutoSize = true;
 			this->CountMaxLabel->Location = System::Drawing::Point(3, 34);
 			this->CountMaxLabel->Name = L"CountMaxLabel";
-			this->CountMaxLabel->Size = System::Drawing::Size(289, 17);
+			this->CountMaxLabel->Size = System::Drawing::Size(251, 17);
 			this->CountMaxLabel->TabIndex = 2;
-			this->CountMaxLabel->Text = L"Максимально допустимое число итераций";
+			this->CountMaxLabel->Text = L"Максимальное число итераций, Nₘₐₓ";
 			// 
-			// ParametrLabel
+			// ELabel
 			// 
-			this->ParametrLabel->AutoSize = true;
-			this->ParametrLabel->Location = System::Drawing::Point(3, 62);
-			this->ParametrLabel->Name = L"ParametrLabel";
-			this->ParametrLabel->Size = System::Drawing::Size(155, 17);
-			this->ParametrLabel->TabIndex = 1;
-			this->ParametrLabel->Text = L"Параметр контроля, ε";
+			this->ELabel->AutoSize = true;
+			this->ELabel->Location = System::Drawing::Point(3, 118);
+			this->ELabel->Name = L"ELabel";
+			this->ELabel->Size = System::Drawing::Size(155, 17);
+			this->ELabel->TabIndex = 1;
+			this->ELabel->Text = L"Параметр контроля, ε";
 			// 
-			// BorderLabel
+			// EgrLabel
 			// 
-			this->BorderLabel->AutoSize = true;
-			this->BorderLabel->Location = System::Drawing::Point(3, 5);
-			this->BorderLabel->Name = L"BorderLabel";
-			this->BorderLabel->Size = System::Drawing::Size(266, 17);
-			this->BorderLabel->TabIndex = 0;
-			this->BorderLabel->Text = L"Контроль выхода на правую границу, b";
+			this->EgrLabel->AutoSize = true;
+			this->EgrLabel->Location = System::Drawing::Point(3, 90);
+			this->EgrLabel->Name = L"EgrLabel";
+			this->EgrLabel->Size = System::Drawing::Size(280, 17);
+			this->EgrLabel->TabIndex = 0;
+			this->EgrLabel->Text = L"Контроль выхода на правую границу, Eгр";
 			// 
 			// ReferenceBox
 			// 
@@ -857,9 +857,9 @@ namespace NumericLab1 {
 			this->B_xnLabel->AutoSize = true;
 			this->B_xnLabel->Location = System::Drawing::Point(107, 18);
 			this->B_xnLabel->Name = L"B_xnLabel";
-			this->B_xnLabel->Size = System::Drawing::Size(55, 17);
+			this->B_xnLabel->Size = System::Drawing::Size(52, 17);
 			this->B_xnLabel->TabIndex = 2;
-			this->B_xnLabel->Text = L"b - Xₙ =";
+			this->B_xnLabel->Text = L"b - xₙ =";
 			// 
 			// NResLabel
 			// 
@@ -884,10 +884,9 @@ namespace NumericLab1 {
 			this->Table->AllowUserToAddRows = false;
 			this->Table->AllowUserToDeleteRows = false;
 			this->Table->ColumnHeadersHeightSizeMode = System::Windows::Forms::DataGridViewColumnHeadersHeightSizeMode::AutoSize;
-			this->Table->Columns->AddRange(gcnew cli::array< System::Windows::Forms::DataGridViewColumn^  >(17) {
+			this->Table->Columns->AddRange(gcnew cli::array< System::Windows::Forms::DataGridViewColumn^  >(14) {
 				this->i, this->Xi, this->Vi,
-					this->Vi1, this->Vi2, this->V2i, this->V2i1, this->V2i2, this->Vi_V2i, this->Vi1_V2i1, this->Vi2_V2i2, this->OLP, this->Hi, this->C1,
-					this->C2, this->Ui, this->Ui_Vi
+					this->Vdi, this->V2i, this->V2di, this->Vi_V2i, this->Vdi_V2di, this->OLP, this->Hi, this->C1, this->C2, this->Ui, this->Ui_Vi
 			});
 			this->Table->Dock = System::Windows::Forms::DockStyle::Fill;
 			this->Table->Location = System::Drawing::Point(0, 0);
@@ -908,7 +907,7 @@ namespace NumericLab1 {
 			// 
 			// Xi
 			// 
-			this->Xi->HeaderText = L"Xᵢ";
+			this->Xi->HeaderText = L"xᵢ";
 			this->Xi->MinimumWidth = 6;
 			this->Xi->Name = L"Xi";
 			this->Xi->ReadOnly = true;
@@ -916,81 +915,54 @@ namespace NumericLab1 {
 			// 
 			// Vi
 			// 
-			this->Vi->HeaderText = L"Vᵢ";
+			this->Vi->HeaderText = L"vᵢ";
 			this->Vi->MinimumWidth = 6;
 			this->Vi->Name = L"Vi";
 			this->Vi->ReadOnly = true;
 			this->Vi->Width = 145;
 			// 
-			// Vi1
+			// Vdi
 			// 
-			this->Vi1->HeaderText = L"Vᵢ1";
-			this->Vi1->MinimumWidth = 6;
-			this->Vi1->Name = L"Vi1";
-			this->Vi1->ReadOnly = true;
-			this->Vi1->Visible = false;
-			this->Vi1->Width = 145;
-			// 
-			// Vi2
-			// 
-			this->Vi2->HeaderText = L"Vᵢ2";
-			this->Vi2->MinimumWidth = 6;
-			this->Vi2->Name = L"Vi2";
-			this->Vi2->ReadOnly = true;
-			this->Vi2->Visible = false;
-			this->Vi2->Width = 145;
+			this->Vdi->HeaderText = L"v\'ᵢ";
+			this->Vdi->MinimumWidth = 6;
+			this->Vdi->Name = L"Vdi";
+			this->Vdi->ReadOnly = true;
+			this->Vdi->Visible = false;
+			this->Vdi->Width = 145;
 			// 
 			// V2i
 			// 
-			this->V2i->HeaderText = L"V2ᵢ";
+			this->V2i->HeaderText = L"v2ᵢ";
 			this->V2i->MinimumWidth = 6;
 			this->V2i->Name = L"V2i";
 			this->V2i->ReadOnly = true;
 			this->V2i->Width = 145;
 			// 
-			// V2i1
+			// V2di
 			// 
-			this->V2i1->HeaderText = L"V2ᵢ1";
-			this->V2i1->MinimumWidth = 6;
-			this->V2i1->Name = L"V2i1";
-			this->V2i1->ReadOnly = true;
-			this->V2i1->Visible = false;
-			this->V2i1->Width = 145;
-			// 
-			// V2i2
-			// 
-			this->V2i2->HeaderText = L"V2ᵢ2";
-			this->V2i2->MinimumWidth = 6;
-			this->V2i2->Name = L"V2i2";
-			this->V2i2->ReadOnly = true;
-			this->V2i2->Visible = false;
-			this->V2i2->Width = 145;
+			this->V2di->HeaderText = L"v2\'ᵢ";
+			this->V2di->MinimumWidth = 6;
+			this->V2di->Name = L"V2di";
+			this->V2di->ReadOnly = true;
+			this->V2di->Visible = false;
+			this->V2di->Width = 145;
 			// 
 			// Vi_V2i
 			// 
-			this->Vi_V2i->HeaderText = L"Vᵢ - V2ᵢ";
+			this->Vi_V2i->HeaderText = L"vᵢ - v2ᵢ";
 			this->Vi_V2i->MinimumWidth = 6;
 			this->Vi_V2i->Name = L"Vi_V2i";
 			this->Vi_V2i->ReadOnly = true;
 			this->Vi_V2i->Width = 145;
 			// 
-			// Vi1_V2i1
+			// Vdi_V2di
 			// 
-			this->Vi1_V2i1->HeaderText = L"Vᵢ1-V2ᵢ1";
-			this->Vi1_V2i1->MinimumWidth = 6;
-			this->Vi1_V2i1->Name = L"Vi1_V2i1";
-			this->Vi1_V2i1->ReadOnly = true;
-			this->Vi1_V2i1->Visible = false;
-			this->Vi1_V2i1->Width = 145;
-			// 
-			// Vi2_V2i2
-			// 
-			this->Vi2_V2i2->HeaderText = L"Vᵢ2-V2ᵢ2";
-			this->Vi2_V2i2->MinimumWidth = 6;
-			this->Vi2_V2i2->Name = L"Vi2_V2i2";
-			this->Vi2_V2i2->ReadOnly = true;
-			this->Vi2_V2i2->Visible = false;
-			this->Vi2_V2i2->Width = 145;
+			this->Vdi_V2di->HeaderText = L"v\'ᵢ-v2\'ᵢ";
+			this->Vdi_V2di->MinimumWidth = 6;
+			this->Vdi_V2di->Name = L"Vdi_V2di";
+			this->Vdi_V2di->ReadOnly = true;
+			this->Vdi_V2di->Visible = false;
+			this->Vdi_V2di->Width = 145;
 			// 
 			// OLP
 			// 
@@ -1007,7 +979,6 @@ namespace NumericLab1 {
 			this->Hi->MinimumWidth = 6;
 			this->Hi->Name = L"Hi";
 			this->Hi->ReadOnly = true;
-			this->Hi->Visible = false;
 			this->Hi->Width = 145;
 			// 
 			// C1
@@ -1030,7 +1001,7 @@ namespace NumericLab1 {
 			// 
 			// Ui
 			// 
-			this->Ui->HeaderText = L"Uᵢ";
+			this->Ui->HeaderText = L"uᵢ";
 			this->Ui->MinimumWidth = 6;
 			this->Ui->Name = L"Ui";
 			this->Ui->ReadOnly = true;
@@ -1038,7 +1009,7 @@ namespace NumericLab1 {
 			// 
 			// Ui_Vi
 			// 
-			this->Ui_Vi->HeaderText = L"|Uᵢ - Vᵢ|";
+			this->Ui_Vi->HeaderText = L"|uᵢ - vᵢ|";
 			this->Ui_Vi->MinimumWidth = 6;
 			this->Ui_Vi->Name = L"Ui_Vi";
 			this->Ui_Vi->ReadOnly = true;
@@ -1070,6 +1041,11 @@ namespace NumericLab1 {
 			this->Chart->Size = System::Drawing::Size(657, 593);
 			this->Chart->TabIndex = 0;
 			this->Chart->Text = L"Chart";
+			title1->Font = (gcnew System::Drawing::Font(L"Microsoft Sans Serif", 10.2F, System::Drawing::FontStyle::Regular, System::Drawing::GraphicsUnit::Point,
+				static_cast<System::Byte>(204)));
+			title1->Name = L"Title";
+			title1->Text = L"График зависимости  v(x) и u(x)";
+			this->Chart->Titles->Add(title1);
 			// 
 			// TCContainer
 			// 
@@ -1101,9 +1077,9 @@ namespace NumericLab1 {
 			this->ChartBox->Controls->Add(this->radioButton3);
 			this->ChartBox->Controls->Add(this->radioButton2);
 			this->ChartBox->Controls->Add(this->radioButton1);
-			this->ChartBox->Location = System::Drawing::Point(469, 119);
+			this->ChartBox->Location = System::Drawing::Point(463, 138);
 			this->ChartBox->Name = L"ChartBox";
-			this->ChartBox->Size = System::Drawing::Size(135, 100);
+			this->ChartBox->Size = System::Drawing::Size(167, 100);
 			this->ChartBox->TabIndex = 6;
 			this->ChartBox->TabStop = false;
 			this->ChartBox->Text = L"График";
@@ -1114,10 +1090,10 @@ namespace NumericLab1 {
 			this->radioButton3->AutoSize = true;
 			this->radioButton3->Location = System::Drawing::Point(6, 75);
 			this->radioButton3->Name = L"radioButton3";
-			this->radioButton3->Size = System::Drawing::Size(88, 21);
+			this->radioButton3->Size = System::Drawing::Size(158, 21);
 			this->radioButton3->TabIndex = 2;
 			this->radioButton3->TabStop = true;
-			this->radioButton3->Text = L"V\' = V\'(V)";
+			this->radioButton3->Text = L"Зависимость v\' от v";
 			this->radioButton3->UseVisualStyleBackColor = true;
 			this->radioButton3->CheckedChanged += gcnew System::EventHandler(this, &MainForm::radioButton3_CheckedChanged);
 			// 
@@ -1126,10 +1102,10 @@ namespace NumericLab1 {
 			this->radioButton2->AutoSize = true;
 			this->radioButton2->Location = System::Drawing::Point(6, 48);
 			this->radioButton2->Name = L"radioButton2";
-			this->radioButton2->Size = System::Drawing::Size(88, 21);
+			this->radioButton2->Size = System::Drawing::Size(157, 21);
 			this->radioButton2->TabIndex = 1;
 			this->radioButton2->TabStop = true;
-			this->radioButton2->Text = L"V\' = V\'(X)";
+			this->radioButton2->Text = L"Зависимость v\' от x";
 			this->radioButton2->UseVisualStyleBackColor = true;
 			this->radioButton2->CheckedChanged += gcnew System::EventHandler(this, &MainForm::radioButton2_CheckedChanged);
 			// 
@@ -1139,10 +1115,10 @@ namespace NumericLab1 {
 			this->radioButton1->Checked = true;
 			this->radioButton1->Location = System::Drawing::Point(6, 21);
 			this->radioButton1->Name = L"radioButton1";
-			this->radioButton1->Size = System::Drawing::Size(82, 21);
+			this->radioButton1->Size = System::Drawing::Size(154, 21);
 			this->radioButton1->TabIndex = 0;
 			this->radioButton1->TabStop = true;
-			this->radioButton1->Text = L"V = V(X)";
+			this->radioButton1->Text = L"Зависимость v от x";
 			this->radioButton1->UseVisualStyleBackColor = true;
 			this->radioButton1->CheckedChanged += gcnew System::EventHandler(this, &MainForm::radioButton1_CheckedChanged);
 			// 
@@ -1165,6 +1141,9 @@ namespace NumericLab1 {
 			this->Chart3->Size = System::Drawing::Size(657, 593);
 			this->Chart3->TabIndex = 7;
 			this->Chart3->Text = L"Chart3";
+			title2->Name = L"Title";
+			title2->Text = L"График зависимости v\'(v)";
+			this->Chart3->Titles->Add(title2);
 			this->Chart3->Visible = false;
 			// 
 			// Chart2
@@ -1186,6 +1165,11 @@ namespace NumericLab1 {
 			this->Chart2->Size = System::Drawing::Size(657, 593);
 			this->Chart2->TabIndex = 2;
 			this->Chart2->Text = L"Chart2";
+			title3->Font = (gcnew System::Drawing::Font(L"Microsoft Sans Serif", 10.2F, System::Drawing::FontStyle::Regular, System::Drawing::GraphicsUnit::Point,
+				static_cast<System::Byte>(204)));
+			title3->Name = L"Title";
+			title3->Text = L"График зависимости v\'(x)";
+			this->Chart2->Titles->Add(title3);
 			this->Chart2->Visible = false;
 			// 
 			// Chart1
@@ -1208,6 +1192,11 @@ namespace NumericLab1 {
 			this->Chart1->Size = System::Drawing::Size(657, 593);
 			this->Chart1->TabIndex = 1;
 			this->Chart1->Text = L"Chart1";
+			title4->Font = (gcnew System::Drawing::Font(L"Microsoft Sans Serif", 10.2F, System::Drawing::FontStyle::Regular, System::Drawing::GraphicsUnit::Point,
+				static_cast<System::Byte>(204)));
+			title4->Name = L"Title";
+			title4->Text = L"График зависимости v(x)";
+			this->Chart1->Titles->Add(title4);
 			this->Chart1->Visible = false;
 			// 
 			// MainTableLayoutPanel
@@ -1286,7 +1275,7 @@ namespace NumericLab1 {
 
 	void clearTable() {
 		for (int i = 0; i < Table->Rows->Count; i++) {
-			for (int j = 0; j < 17; j++) {
+			for (int j = 0; j < 14; j++) {
 				Table->Rows[i]->Cells[j]->Value = "";
 			}
 		}
@@ -1306,222 +1295,203 @@ namespace NumericLab1 {
 		clearTable();
 
 		if (!Double::TryParse(X0TextBox->Text, System::Globalization::NumberStyles::Float, System::Globalization::CultureInfo::InvariantCulture, x0)) {
-			MessageBox::Show("X0 не число", "Ошибка", MessageBoxButtons::OK, MessageBoxIcon::Error,
-				MessageBoxDefaultButton::Button1, MessageBoxOptions::RightAlign);
+			MessageBox::Show(L"x₀ не число", "Ошибка", MessageBoxButtons::OK, MessageBoxIcon::Error);
 			return;
 		}
 		if (!Double::TryParse(U0TextBox->Text, System::Globalization::NumberStyles::Float, System::Globalization::CultureInfo::InvariantCulture, u0)) {
-			MessageBox::Show("U0 не число", "Ошибка", MessageBoxButtons::OK, MessageBoxIcon::Error,
-				MessageBoxDefaultButton::Button1, MessageBoxOptions::RightAlign);
+			MessageBox::Show(L"u₀ не число", "Ошибка", MessageBoxButtons::OK, MessageBoxIcon::Error);
 			return;
 		}
-		if (!Double::TryParse(XTextBox->Text, System::Globalization::NumberStyles::Float, System::Globalization::CultureInfo::InvariantCulture, x)) {
-			MessageBox::Show("X не число", "Ошибка", MessageBoxButtons::OK, MessageBoxIcon::Error,
-				MessageBoxDefaultButton::Button1, MessageBoxOptions::RightAlign);
-			return;
-		} else if (x <= x0) {
-			MessageBox::Show("X меньше либо равен X0", "Ошибка", MessageBoxButtons::OK, MessageBoxIcon::Error,
-				MessageBoxDefaultButton::Button1, MessageBoxOptions::RightAlign);
-			return;
-		}
-		if (!Double::TryParse(BorderTextBox->Text, System::Globalization::NumberStyles::Float, System::Globalization::CultureInfo::InvariantCulture, b)) {
-			MessageBox::Show("Параметр контроля выхода на правую границу не число", "Ошибка", MessageBoxButtons::OK, MessageBoxIcon::Error,
-				MessageBoxDefaultButton::Button1, MessageBoxOptions::RightAlign);
-			return;
-		} else if (b < 0) {
-			MessageBox::Show("Параметр контроля выхода на правую границу меньше нуля", "Ошибка", MessageBoxButtons::OK, MessageBoxIcon::Error,
-				MessageBoxDefaultButton::Button1, MessageBoxOptions::RightAlign);
-			return;
-		}
+
 		if (!Double::TryParse(StepTextBox->Text, System::Globalization::NumberStyles::Float, System::Globalization::CultureInfo::InvariantCulture, h)) {
-			MessageBox::Show("Начальный шаг не число", "Ошибка", MessageBoxButtons::OK, MessageBoxIcon::Error,
-				MessageBoxDefaultButton::Button1, MessageBoxOptions::RightAlign);
+			MessageBox::Show(L"Начальный шаг h₀ не число", "Ошибка", MessageBoxButtons::OK, MessageBoxIcon::Error);
 			return;
 		} else if (h <= 0) {
-			MessageBox::Show("Начальный шаг меньше либо равен нулю", "Ошибка", MessageBoxButtons::OK, MessageBoxIcon::Error,
-				MessageBoxDefaultButton::Button1, MessageBoxOptions::RightAlign);
+			MessageBox::Show(L"Начальный шаг h₀ меньше либо равен нулю", "Ошибка", MessageBoxButtons::OK, MessageBoxIcon::Error);
 			return;
 		}
 		if (!Int32::TryParse(CountMaxTextBox->Text, Nmax)) {
-			MessageBox::Show("Максимально допустимое число итераций не число", "Ошибка", MessageBoxButtons::OK, MessageBoxIcon::Error,
-				MessageBoxDefaultButton::Button1, MessageBoxOptions::RightAlign);
+			MessageBox::Show(L"Максимально допустимое число итераций Nₘₐₓ не число", "Ошибка", MessageBoxButtons::OK, MessageBoxIcon::Error);
 			return;
 		} else if (Nmax <= 0) {
-			MessageBox::Show("Максимально допустимое число итераций меньше либо равно нулю", "Ошибка", MessageBoxButtons::OK, MessageBoxIcon::Error,
-				MessageBoxDefaultButton::Button1, MessageBoxOptions::RightAlign);
+			MessageBox::Show(L"Максимально допустимое число итераций Nₘₐₓ меньше либо равно нулю", "Ошибка", MessageBoxButtons::OK, MessageBoxIcon::Error);
 			return;
 		}
+		if (!Double::TryParse(bTextBox->Text, System::Globalization::NumberStyles::Float, System::Globalization::CultureInfo::InvariantCulture, b)) {
+			MessageBox::Show("Правая граница интегрирования b не число", "Ошибка", MessageBoxButtons::OK, MessageBoxIcon::Error);
+			return;
+		} else if (b <= x0) {
+			MessageBox::Show(L"Правая граница интегрирования b меньше либо равена x₀", "Ошибка", MessageBoxButtons::OK, MessageBoxIcon::Error);
+			return;
+		}
+		if (!Double::TryParse(EgrTextBox->Text, System::Globalization::NumberStyles::Float, System::Globalization::CultureInfo::InvariantCulture, Egr)) {
+			MessageBox::Show("Параметр контроля выхода на правую границу Egr не число", "Ошибка", MessageBoxButtons::OK, MessageBoxIcon::Error);
+			return;
+		} else if (Egr < 0) {
+			MessageBox::Show("Параметр контроля выхода на правую границу Egr меньше нуля", "Ошибка", MessageBoxButtons::OK, MessageBoxIcon::Error);
+			return;
+		}
+		
 		local_error_control = ErrorCheckBox->Checked;
 		if (local_error_control) {
-			if (!Double::TryParse(ErrorTextBox->Text, System::Globalization::NumberStyles::Float, System::Globalization::CultureInfo::InvariantCulture, eps)) {
-				MessageBox::Show("Параметр контроля не число", "Ошибка", MessageBoxButtons::OK, MessageBoxIcon::Error,
-					MessageBoxDefaultButton::Button1, MessageBoxOptions::RightAlign);
+			if (!Double::TryParse(ETextBox->Text, System::Globalization::NumberStyles::Float, System::Globalization::CultureInfo::InvariantCulture, eps)) {
+				MessageBox::Show(L"Параметр контроля ε не число", "Ошибка", MessageBoxButtons::OK, MessageBoxIcon::Error);
 				return;
 			} else if (eps <= 0) {
-				MessageBox::Show("Параметр контроля меньше либо равен нулю", "Ошибка", MessageBoxButtons::OK, MessageBoxIcon::Error,
-					MessageBoxDefaultButton::Button1, MessageBoxOptions::RightAlign);
+				MessageBox::Show(L"Параметр контроля ε меньше либо равен нулю", "Ошибка", MessageBoxButtons::OK, MessageBoxIcon::Error);
 				return;
 			}
 		}
 		if (TaskComboBox->Text == "Основная №2") {
 			if (!Double::TryParse(Ud0TextBox->Text, System::Globalization::NumberStyles::Float, System::Globalization::CultureInfo::InvariantCulture, ud0)) {
-				MessageBox::Show("U'0 не число", "Ошибка", MessageBoxButtons::OK, MessageBoxIcon::Error,
-					MessageBoxDefaultButton::Button1, MessageBoxOptions::RightAlign);
+				MessageBox::Show(L"u'₀ не число", "Ошибка", MessageBoxButtons::OK, MessageBoxIcon::Error);
 				return;
 			}
-			if (!Double::TryParse(ATextBox->Text, System::Globalization::NumberStyles::Float, System::Globalization::CultureInfo::InvariantCulture, A)) {
-				MessageBox::Show("a не число", "Ошибка", MessageBoxButtons::OK, MessageBoxIcon::Error,
-					MessageBoxDefaultButton::Button1, MessageBoxOptions::RightAlign);
+			if (!Double::TryParse(ASysTextBox->Text, System::Globalization::NumberStyles::Float, System::Globalization::CultureInfo::InvariantCulture, A)) {
+				MessageBox::Show("a не число", "Ошибка", MessageBoxButtons::OK, MessageBoxIcon::Error);
 				return;
 			}
-			if (!Double::TryParse(BTextBox->Text, System::Globalization::NumberStyles::Float, System::Globalization::CultureInfo::InvariantCulture, B)) {
-				MessageBox::Show("b не число", "Ошибка", MessageBoxButtons::OK, MessageBoxIcon::Error,
-					MessageBoxDefaultButton::Button1, MessageBoxOptions::RightAlign);
+			if (!Double::TryParse(BSysTextBox->Text, System::Globalization::NumberStyles::Float, System::Globalization::CultureInfo::InvariantCulture, B)) {
+				MessageBox::Show("b не число", "Ошибка", MessageBoxButtons::OK, MessageBoxIcon::Error);
 				return;
-			}
-		}
-
-		if (Nmax + 1 > currSizeArray) {
-			currSizeArray = Nmax + 1;
-			delete[] X; X = new double[currSizeArray];
-			delete[] V; V = new double[currSizeArray];
-			delete[] V2; V2 = new double[currSizeArray];
-			if (local_error_control) {
-				delete[] OLP_Arr; OLP_Arr = new double[currSizeArray];
-				delete[] H; H = new double[currSizeArray];
-				delete[] C1_Arr; C1_Arr = new int[currSizeArray];
-				delete[] C2_Arr; C2_Arr = new int[currSizeArray];
-			}
-			if (TaskComboBox->Text == "Тестовая") {
-				delete[] U; U = new double[currSizeArray];
-				delete[] U_V; U_V = new double[currSizeArray];
-			}
-			if (TaskComboBox->Text == "Основная №2") {
-				delete[] V_1; V_1 = new double[currSizeArray];
-				delete[] V2_1; V2_1 = new double[currSizeArray];
 			}
 		}
 		
 		if (TaskComboBox->Text == "Тестовая") {
+			rk4_test->setH0(h);
+			rk4_test->setSC(x0, u0);
 			if (local_error_control) {
-				N = rk4_method_test(h, Nmax, x0, u0, x, eps, b, &f_test, &func_test, X, V, V2, OLP_Arr, H, C1_Arr, C2_Arr, U, U_V);
+				rk4_test->setControl(Nmax, b, Egr, eps, true);
+				rk4_test->solve(*X, *H, (*V)[0], (*V2)[0], *OLP_Arr, *C1_Arr, *C2_Arr);
 			} else {
-				N = rk4_method_test(h, Nmax, x0, u0, x, b, &f_test, &func_test, X, V, V2, U, U_V);
+				rk4_test->setControl(Nmax, b, Egr);
+				rk4_test->solve(*X, *H, (*V)[0], (*V2)[0]);
 			}
-			//рисование графика
-			for (double i = x0; i < x; i += 0.001) {
+			N = (int)X->size();
+			U->resize(N);
+			U_V->resize(N);
+			for (int i = 0; i < N; i++) {
+				(*U)[i] = func_test((*X)[i]);
+				(*U_V)[i] = abs((*U)[i] - (*V)[0][i]);
+			}
+
+			//рисование графика истинного решения
+			for (double i = x0; i < b; i += 0.001) {
 				Chart->Series["Истинное решение"]->Points->AddXY(i, func_test(i));
 			}
 
 			// заполнение последней строки справки
-			int mInd = max(U_V, N);
-			MaxU_VResLabel->Text = U_V[mInd].ToString();
-			PriX3ResLabel->Text = X[mInd].ToString();
+			int mInd = max(*U_V);
+			MaxU_VResLabel->Text = (*U_V)[mInd].ToString();
+			PriX3ResLabel->Text = (*X)[mInd].ToString();
 
 		} else if (TaskComboBox->Text == "Основная №1") {
+			rk4_one->setH0(h);
+			rk4_one->setSC(x0, u0);
 			if (local_error_control) {
-				N = rk4_method(h, Nmax, x0, u0, x, eps, b, &f, X, V, V2, OLP_Arr, H, C1_Arr, C2_Arr);
+				rk4_one->setControl(Nmax, b, Egr, eps, true);
+				rk4_one->solve(*X, *H, (*V)[0], (*V2)[0], *OLP_Arr, *C1_Arr, *C2_Arr);
 			} else {
-				N = rk4_method(h, Nmax, x0, u0, x, b, &f, X, V, V2);
+				rk4_one->setControl(Nmax, b, Egr);
+				rk4_one->solve(*X, *H, (*V)[0], (*V2)[0]);
 			}
+			N = (int)X->size();
 		} else if (TaskComboBox->Text == "Основная №2") {
+			rk4_two->setH0(h);
+			rk4_two->setSC(x0, u0, ud0);
 			if (local_error_control) {
-				N = rk4_method(h, Nmax, x0, u0, ud0, x, eps, b, &f1, &f2, X, V, V_1, V2, V2_1, OLP_Arr, H, C1_Arr, C2_Arr);
+				rk4_two->setControl(Nmax, b, Egr, eps, true);
+				rk4_two->solve(*X, *H, *V, *V2, *OLP_Arr, *C1_Arr, *C2_Arr);
 			} else {
-				N = rk4_method(h, Nmax, x0, u0, ud0, x, b, &f1, &f2, X, V, V_1, V2, V2_1);
+				rk4_two->setControl(Nmax, b, Egr);
+				rk4_two->solve(*X, *H, *V, *V2);
 			}
+			N = (int)X->size();
 		}
 
 		//рисование графика
 		if (TaskComboBox->Text == "Тестовая") {
-			for (int i = 0; i < N + 1; i++) {
-				if (!Double::IsNaN(V[i]) && !Double::IsNaN(X[i]) && rangeOfDec(V[i]) && rangeOfDec(X[i])) {
-					Chart->Series["Численное решение"]->Points->AddXY(X[i], V[i]);
+			for (int i = 0; i < N; i++) {
+				if (!Double::IsNaN((*V)[0][i]) && !Double::IsNaN((*X)[i]) && rangeOfDec((*V)[0][i]) && rangeOfDec((*X)[i])) {
+					Chart->Series["Численное решение"]->Points->AddXY((*X)[i], (*V)[0][i]);
 				}
 			}
 		} else {
-			for (int i = 0; i < N + 1; i++) {
-				if (!Double::IsNaN(V[i]) && !Double::IsNaN(X[i]) && rangeOfDec(V[i]) && rangeOfDec(X[i])) {
-					Chart1->Series["Численное решение"]->Points->AddXY(X[i], V[i]);
+			for (int i = 0; i < N; i++) {
+				if (!Double::IsNaN((*V)[0][i]) && !Double::IsNaN((*X)[i]) && rangeOfDec((*V)[0][i]) && rangeOfDec((*X)[i])) {
+					Chart1->Series["Численное решение"]->Points->AddXY((*X)[i], (*V)[0][i]);
 				}
 			}
 			if (TaskComboBox->Text == "Основная №2") {
-				for (int i = 0; i < N + 1; i++) {
-					if (!Double::IsNaN(V_1[i]) && !Double::IsNaN(X[i]) && rangeOfDec(V_1[i]) && rangeOfDec(X[i])) {
-						Chart2->Series["Численное решение"]->Points->AddXY(X[i], V_1[i]);
+				for (int i = 0; i < N; i++) {
+					if (!Double::IsNaN((*V)[1][i]) && !Double::IsNaN((*X)[i]) && rangeOfDec((*V)[1][i]) && rangeOfDec((*X)[i])) {
+						Chart2->Series["Численное решение"]->Points->AddXY((*X)[i], (*V)[1][i]);
 					}
 				}
-				for (int i = 0; i < N + 1; i++) {
-					if (!Double::IsNaN(V[i]) && !Double::IsNaN(V_1[i]) && rangeOfDec(V[i]) && rangeOfDec(V_1[i])) {
-						Chart3->Series["Численное решение"]->Points->AddXY(V[i], V_1[i]);
+				for (int i = 0; i < N; i++) {
+					if (!Double::IsNaN((*V)[0][i]) && !Double::IsNaN((*V)[1][i]) && rangeOfDec((*V)[0][i]) && rangeOfDec((*V)[1][i])) {
+						Chart3->Series["Численное решение"]->Points->AddXY((*V)[0][i], (*V)[1][i]);
 					}
 				}
 			}
 		}
 
 		//заполнение таблицы
-		if (Table->Rows->Count < N + 1) {
-			int k = N + 1 - Table->Rows->Count;
+		if (Table->Rows->Count < N) {
+			int k = N - Table->Rows->Count;
 			for (int i = 0; i < k; i++) {
 				Table->Rows->Add();
 			}
 		} else if (Table->Rows->Count > 2 * N) {
 			int k = Table->Rows->Count - 1;
-			for (int i = k; i > N; i--) {
+			for (int i = k; i >= N; i--) {
 				Table->Rows->RemoveAt(i);
 			}
 		}
 		Table->Rows[0]->Cells[0]->Value = "0";
-		Table->Rows[0]->Cells[1]->Value = X[0].ToString();
+		Table->Rows[0]->Cells[1]->Value = (*X)[0].ToString();
+		Table->Rows[0]->Cells[2]->Value = (*V)[0][0].ToString();
 		if (TaskComboBox->Text == "Основная №2") {
-			Table->Rows[0]->Cells[3]->Value = V[0].ToString();
-			Table->Rows[0]->Cells[4]->Value = V_1[0].ToString();
-		} else {
-			Table->Rows[0]->Cells[2]->Value = V[0].ToString();
+			Table->Rows[0]->Cells[3]->Value = (*V)[1][0].ToString();
 		}
-		for (int i = 1; i < N + 1; i++) {
+		for (int i = 1; i < N; i++) {
 			Table->Rows[i]->Cells[0]->Value = i.ToString();
-			Table->Rows[i]->Cells[1]->Value = X[i].ToString();
+			Table->Rows[i]->Cells[1]->Value = (*X)[i].ToString();
+			Table->Rows[i]->Cells[2]->Value = (*V)[0][i].ToString();
+			Table->Rows[i]->Cells[4]->Value = (*V2)[0][i - 1].ToString();
+			Table->Rows[i]->Cells[6]->Value = ((*V)[0][i] - (*V2)[0][i - 1]).ToString();
+			Table->Rows[i]->Cells[9]->Value = (*H)[i - 1].ToString();
 			if (TaskComboBox->Text == "Основная №2") {
-				Table->Rows[i]->Cells[3]->Value = V[i].ToString();
-				Table->Rows[i]->Cells[4]->Value = V_1[i].ToString();
-				Table->Rows[i]->Cells[6]->Value = V2[i].ToString();
-				Table->Rows[i]->Cells[7]->Value = V2_1[i].ToString();
-				Table->Rows[i]->Cells[9]->Value = (V[i] - V2[i]).ToString();
-				Table->Rows[i]->Cells[10]->Value = (V_1[i] - V2_1[i]).ToString();
-			} else {
-				Table->Rows[i]->Cells[0]->Value = i.ToString();
-				Table->Rows[i]->Cells[1]->Value = X[i].ToString();
-				Table->Rows[i]->Cells[2]->Value = V[i].ToString();
-				Table->Rows[i]->Cells[5]->Value = V2[i].ToString();
-				Table->Rows[i]->Cells[8]->Value = (V[i] - V2[i]).ToString();
+				Table->Rows[i]->Cells[3]->Value = (*V)[1][i].ToString();
+				Table->Rows[i]->Cells[5]->Value = (*V2)[1][i - 1].ToString();
+				Table->Rows[i]->Cells[7]->Value = ((*V)[1][i] - (*V2)[1][i - 1]).ToString();
 			}
 			if (TaskComboBox->Text == "Тестовая") {
-				Table->Rows[i]->Cells[15]->Value = U[i].ToString();
-				Table->Rows[i]->Cells[16]->Value = abs(U_V[i]).ToString();
+				Table->Rows[i]->Cells[12]->Value = (*U)[i].ToString();
+				Table->Rows[i]->Cells[13]->Value = (*U_V)[i].ToString();
 			}
 			if (local_error_control) {
-				Table->Rows[i]->Cells[11]->Value = OLP_Arr[i].ToString();
-				Table->Rows[i]->Cells[12]->Value = H[i - 1].ToString();
-				Table->Rows[i]->Cells[13]->Value = C1_Arr[i].ToString();
-				Table->Rows[i]->Cells[14]->Value = C2_Arr[i].ToString();
+				Table->Rows[i]->Cells[8]->Value = (*OLP_Arr)[i - 1].ToString();
+				Table->Rows[i]->Cells[10]->Value = (*C1_Arr)[i - 1].ToString();
+				Table->Rows[i]->Cells[11]->Value = (*C2_Arr)[i - 1].ToString();
 			}
 		}
 
 		//Заполнение справки
-		NResLabel->Text = N.ToString();
-		B_xnResLabel->Text = (b - X[N]).ToString();
+		NResLabel->Text = (N - 1).ToString();
+		B_xnResLabel->Text = (b - (*X)[N - 1]).ToString();
 		if (local_error_control) {
-			C1ResLabel->Text = sum(C1_Arr, N + 1).ToString();
-			C2ResLabel->Text = sum(C2_Arr, N + 1).ToString();
-			abs_arr(OLP_Arr, N + 1);
-			MaxOLPResLabel->Text = OLP_Arr[max(OLP_Arr, N + 1)].ToString();
-			int mInd = max(H, N + 1);
-			MaxHResLabel->Text = H[mInd].ToString();
-			PriX1ResLabel->Text = X[mInd].ToString();
-			mInd = min(H, N + 1);
-			MinHResLabel->Text = H[mInd].ToString();
-			PriX2ResLabel->Text = X[mInd].ToString();
+			C1ResLabel->Text = sum(*C1_Arr).ToString();
+			C2ResLabel->Text = sum(*C2_Arr).ToString();
+			abs_arr(*OLP_Arr);
+			MaxOLPResLabel->Text = (*OLP_Arr)[max(*OLP_Arr)].ToString();
+			H->pop_back();
+			int mInd = max(*H);
+			MaxHResLabel->Text = (*H)[mInd].ToString();
+			PriX1ResLabel->Text = (*X)[mInd + 1].ToString();
+			mInd = min(*H);
+			MinHResLabel->Text = (*H)[mInd].ToString();
+			PriX2ResLabel->Text = (*X)[mInd + 1].ToString();
 		}
 	}
 
@@ -1569,18 +1539,13 @@ namespace NumericLab1 {
 
 				// Дополнительные параметры для системы
 				Ud0Label->Enabled = true; Ud0TextBox->Enabled = true;
-				ALabel->Enabled = true; ATextBox->Enabled = true;
-				BLabel->Enabled = true; BTextBox->Enabled = true;
+				ASysLabel->Enabled = true; ASysTextBox->Enabled = true;
+				BSysLabel->Enabled = true; BSysTextBox->Enabled = true;
 
 				// Дополнительные столбцы
-				Vi1->Visible = true; Vi2->Visible = true;
-				V2i1->Visible = true; V2i2->Visible = true;
-				Vi1_V2i1->Visible = true; Vi2_V2i2->Visible = true;
-
-				// Убрать ненужные столбцы
-				Vi->Visible = false;
-				V2i->Visible = false;
-				Vi_V2i->Visible = false;
+				Vdi->Visible = true;
+				V2di->Visible = true;
+				Vdi_V2di->Visible = true;
 
 				// График
 				Chart1->Visible = true;
@@ -1591,18 +1556,13 @@ namespace NumericLab1 {
 		} else {
 			// Дополнительные параметры для системы
 			Ud0Label->Enabled = false; Ud0TextBox->Enabled = false;
-			ALabel->Enabled = false; ATextBox->Enabled = false;
-			BLabel->Enabled = false; BTextBox->Enabled = false;
+			ASysLabel->Enabled = false; ASysTextBox->Enabled = false;
+			BSysLabel->Enabled = false; BSysTextBox->Enabled = false;
 
 			// Дополнительные столбцы
-			Vi1->Visible = false; Vi2->Visible = false;
-			V2i1->Visible = false; V2i2->Visible = false;
-			Vi1_V2i1->Visible = false; Vi2_V2i2->Visible = false;
-
-			// Вернуть ненужные столбцы
-			Vi->Visible = true;
-			V2i->Visible = true;
-			Vi_V2i->Visible = true;
+			Vdi->Visible = false;
+			V2di->Visible = false;
+			Vdi_V2di->Visible = false;
 
 			// График
 			Chart2->Visible = false;
@@ -1623,9 +1583,8 @@ namespace NumericLab1 {
 
 	private: System::Void ErrorCheckBox_CheckedChanged(System::Object^ sender, System::EventArgs^ e) {
 		bool b = ErrorCheckBox->Checked;
-		ErrorTextBox->Enabled = b;
+		ETextBox->Enabled = b;
 		OLP->Visible = b;
-		Hi->Visible = b;
 		C1->Visible = b;
 		C2->Visible = b;
 	}

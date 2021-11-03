@@ -21,23 +21,24 @@ Class NumericLab1.MainForm: AutoLayout, AnsiClass, Class, Public, BeforeFieldIni
   :System.Windows.Forms.Form
     Void .ctor(): PrivateScope, Public, HideBySig, SpecialName, RTSpecialName
   Fields:
-    Double* X : Public
-    Double* V : Public
-    Double* V_1 : Public
-    Double* V2 : Public
-    Double* V2_1 : Public
-    Double* OLP_Arr : Public
-    Double* H : Public
-    Int32* C1_Arr : Public
-    Int32* C2_Arr : Public
-    Double* U : Public
-    Double* U_V : Public
-    Double x : Public
+    std.vector<double\,std::allocator<double> >* X : Public
+    std.vector<std::vector<double\,std::allocator<double> >\,std::allocator<std::vector<double\,std::allocator<double> > > >* V : Public
+    std.vector<std::vector<double\,std::allocator<double> >\,std::allocator<std::vector<double\,std::allocator<double> > > >* V2 : Public
+    std.vector<double\,std::allocator<double> >* OLP_Arr : Public
+    std.vector<double\,std::allocator<double> >* H : Public
+    std.vector<int\,std::allocator<int> >* C1_Arr : Public
+    std.vector<int\,std::allocator<int> >* C2_Arr : Public
+    std.vector<double\,std::allocator<double> >* U : Public
+    std.vector<double\,std::allocator<double> >* U_V : Public
     Double b : Public
+    Double Egr : Public
     Double eps : Public
     Double h : Public
     Int32 Nmax : Public
     Int32 N : Public
     Boolean local_error_control : Public
+    rk4_method* rk4_test : Public
+    rk4_method* rk4_one : Public
+    rk4_method* rk4_two : Public
     System.Resources.ResourceManager s_pxResourceManager : Public
     System.String strTask : Public

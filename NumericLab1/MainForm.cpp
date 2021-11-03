@@ -7,7 +7,7 @@ using namespace System::Windows::Forms;
 extern bool SetProcessDPIAware();
 
 [STAThreadAttribute]
-void main(array<String^>^ args) {
+void main(cli::array<String^>^ args) {
     SetProcessDPIAware();
     Application::EnableVisualStyles();
     Application::SetCompatibleTextRenderingDefault(false);
