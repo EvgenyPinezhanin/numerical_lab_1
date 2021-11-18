@@ -6,7 +6,6 @@
 #include"numerical.h"
 
 namespace NumericLab1 {
-
 	using namespace System;
 	using namespace System::ComponentModel;
 	using namespace System::Collections;
@@ -34,8 +33,9 @@ namespace NumericLab1 {
 		return false;
 	}
 
+	// Индекс максимального элемента в vector
 	template<typename T>
-	int max(const vector<T> &arr) {
+	int max_elem_ind(const vector<T> &arr) {
 		if (arr.empty()) return -1;
 		T m = arr[0];
 		int ind = 0;
@@ -48,8 +48,9 @@ namespace NumericLab1 {
 		return ind;
 	}
 
+	// Индекс минимального элемента в vector
 	template<typename T>
-	int min(const vector<T> &arr) {
+	int min_elem_ind(const vector<T> &arr) {
 		if (arr.empty()) return -1;
 		T m = arr[0];
 		int ind = 0;
@@ -62,8 +63,9 @@ namespace NumericLab1 {
 		return ind;
 	}
 
+	// Сумма элементов vector
 	template<typename T>
-	int sum(const vector<T> &arr) {
+	int sum_elem(const vector<T>& arr) {
 		T sum = T(0);
 		for (int i = 0; i < arr.size(); i++) {
 			sum += arr[i];
@@ -71,8 +73,9 @@ namespace NumericLab1 {
 		return sum;
 	}
 
+	// Все элементы vector заменяет их модулями
 	template<typename T>
-	void abs_arr(vector<T> &arr) {
+	void abs_elem(vector<T> &arr) {
 		for (int i = 0; i < arr.size(); i++) {
 			arr[i] = abs(arr[i]);
 		}
@@ -97,7 +100,7 @@ namespace NumericLab1 {
 	}
 
 	double f2(double x, double u1, double u2) {
-		return -A * u2 * u2 + B * u1;
+		return -A * u2 * u2 - B * u1;
 	}
 
 	public ref class MainForm : public System::Windows::Forms::Form {
@@ -167,7 +170,6 @@ namespace NumericLab1 {
 		}
 
 #pragma region declaration
-
 	private: System::Windows::Forms::TableLayoutPanel^ MainTableLayoutPanel;
 	private: System::Windows::Forms::Panel^ MainPanel;
 	private: System::Windows::Forms::GroupBox^ TaskBox;
@@ -1029,11 +1031,13 @@ namespace NumericLab1 {
 			series1->ChartArea = L"ChartArea1";
 			series1->ChartType = System::Windows::Forms::DataVisualization::Charting::SeriesChartType::Line;
 			series1->Color = System::Drawing::Color::Red;
+			series1->LabelBorderWidth = 2;
 			series1->Legend = L"Legend1";
 			series1->Name = L"Истинное решение";
 			series2->ChartArea = L"ChartArea1";
 			series2->ChartType = System::Windows::Forms::DataVisualization::Charting::SeriesChartType::Line;
 			series2->Color = System::Drawing::Color::Blue;
+			series2->LabelBorderWidth = 2;
 			series2->Legend = L"Legend1";
 			series2->Name = L"Численное решение";
 			this->Chart->Series->Add(series1);
@@ -1044,7 +1048,7 @@ namespace NumericLab1 {
 			title1->Font = (gcnew System::Drawing::Font(L"Microsoft Sans Serif", 10.2F, System::Drawing::FontStyle::Regular, System::Drawing::GraphicsUnit::Point,
 				static_cast<System::Byte>(204)));
 			title1->Name = L"Title";
-			title1->Text = L"График зависимости  v(x) и u(x)";
+			title1->Text = L"График зависимости  v от x и u от x";
 			this->Chart->Titles->Add(title1);
 			// 
 			// TCContainer
@@ -1077,7 +1081,7 @@ namespace NumericLab1 {
 			this->ChartBox->Controls->Add(this->radioButton3);
 			this->ChartBox->Controls->Add(this->radioButton2);
 			this->ChartBox->Controls->Add(this->radioButton1);
-			this->ChartBox->Location = System::Drawing::Point(463, 138);
+			this->ChartBox->Location = System::Drawing::Point(457, 138);
 			this->ChartBox->Name = L"ChartBox";
 			this->ChartBox->Size = System::Drawing::Size(167, 100);
 			this->ChartBox->TabIndex = 6;
@@ -1135,6 +1139,7 @@ namespace NumericLab1 {
 			this->Chart3->Name = L"Chart3";
 			series3->ChartArea = L"ChartArea1";
 			series3->ChartType = System::Windows::Forms::DataVisualization::Charting::SeriesChartType::Line;
+			series3->LabelBorderWidth = 2;
 			series3->Legend = L"Legend1";
 			series3->Name = L"Численное решение";
 			this->Chart3->Series->Add(series3);
@@ -1142,7 +1147,7 @@ namespace NumericLab1 {
 			this->Chart3->TabIndex = 7;
 			this->Chart3->Text = L"Chart3";
 			title2->Name = L"Title";
-			title2->Text = L"График зависимости v\'(v)";
+			title2->Text = L"График зависимости v\' от v";
 			this->Chart3->Titles->Add(title2);
 			this->Chart3->Visible = false;
 			// 
@@ -1159,6 +1164,7 @@ namespace NumericLab1 {
 			this->Chart2->Name = L"Chart2";
 			series4->ChartArea = L"ChartArea1";
 			series4->ChartType = System::Windows::Forms::DataVisualization::Charting::SeriesChartType::Line;
+			series4->LabelBorderWidth = 2;
 			series4->Legend = L"Legend1";
 			series4->Name = L"Численное решение";
 			this->Chart2->Series->Add(series4);
@@ -1168,7 +1174,7 @@ namespace NumericLab1 {
 			title3->Font = (gcnew System::Drawing::Font(L"Microsoft Sans Serif", 10.2F, System::Drawing::FontStyle::Regular, System::Drawing::GraphicsUnit::Point,
 				static_cast<System::Byte>(204)));
 			title3->Name = L"Title";
-			title3->Text = L"График зависимости v\'(x)";
+			title3->Text = L"График зависимости v\' от x";
 			this->Chart2->Titles->Add(title3);
 			this->Chart2->Visible = false;
 			// 
@@ -1185,6 +1191,7 @@ namespace NumericLab1 {
 			this->Chart1->Name = L"Chart1";
 			series5->ChartArea = L"ChartArea1";
 			series5->ChartType = System::Windows::Forms::DataVisualization::Charting::SeriesChartType::Line;
+			series5->LabelBorderWidth = 2;
 			series5->Legend = L"Legend1";
 			series5->Name = L"Численное решение";
 			series5->YValuesPerPoint = 2;
@@ -1195,7 +1202,7 @@ namespace NumericLab1 {
 			title4->Font = (gcnew System::Drawing::Font(L"Microsoft Sans Serif", 10.2F, System::Drawing::FontStyle::Regular, System::Drawing::GraphicsUnit::Point,
 				static_cast<System::Byte>(204)));
 			title4->Name = L"Title";
-			title4->Text = L"График зависимости v(x)";
+			title4->Text = L"График зависимости v от x";
 			this->Chart1->Titles->Add(title4);
 			this->Chart1->Visible = false;
 			// 
@@ -1381,7 +1388,7 @@ namespace NumericLab1 {
 			}
 
 			// заполнение последней строки справки
-			int mInd = max(*U_V);
+			int mInd = max_elem_ind(*U_V);
 			MaxU_VResLabel->Text = (*U_V)[mInd].ToString();
 			PriX3ResLabel->Text = (*X)[mInd].ToString();
 
@@ -1481,15 +1488,15 @@ namespace NumericLab1 {
 		NResLabel->Text = (N - 1).ToString();
 		B_xnResLabel->Text = (b - (*X)[N - 1]).ToString();
 		if (local_error_control) {
-			C1ResLabel->Text = sum(*C1_Arr).ToString();
-			C2ResLabel->Text = sum(*C2_Arr).ToString();
-			abs_arr(*OLP_Arr);
-			MaxOLPResLabel->Text = (*OLP_Arr)[max(*OLP_Arr)].ToString();
+			C1ResLabel->Text = sum_elem(*C1_Arr).ToString();
+			C2ResLabel->Text = sum_elem(*C2_Arr).ToString();
+			abs_elem(*OLP_Arr);
+			MaxOLPResLabel->Text = (*OLP_Arr)[max_elem_ind(*OLP_Arr)].ToString();
 			H->pop_back();
-			int mInd = max(*H);
+			int mInd = max_elem_ind(*H);
 			MaxHResLabel->Text = (*H)[mInd].ToString();
 			PriX1ResLabel->Text = (*X)[mInd + 1].ToString();
-			mInd = min(*H);
+			mInd = min_elem_ind(*H);
 			MinHResLabel->Text = (*H)[mInd].ToString();
 			PriX2ResLabel->Text = (*X)[mInd + 1].ToString();
 		}
