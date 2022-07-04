@@ -638,9 +638,9 @@ namespace NumericLab1 {
 			this->ELabel->AutoSize = true;
 			this->ELabel->Location = System::Drawing::Point(3, 118);
 			this->ELabel->Name = L"ELabel";
-			this->ELabel->Size = System::Drawing::Size(155, 17);
+			this->ELabel->Size = System::Drawing::Size(276, 17);
 			this->ELabel->TabIndex = 1;
-			this->ELabel->Text = L"Параметр контроля, ε";
+			this->ELabel->Text = L"Параметр контроля лок. погрешности, ε";
 			// 
 			// EgrLabel
 			// 
@@ -1081,7 +1081,7 @@ namespace NumericLab1 {
 			this->ChartBox->Controls->Add(this->radioButton3);
 			this->ChartBox->Controls->Add(this->radioButton2);
 			this->ChartBox->Controls->Add(this->radioButton1);
-			this->ChartBox->Location = System::Drawing::Point(457, 138);
+			this->ChartBox->Location = System::Drawing::Point(451, 138);
 			this->ChartBox->Name = L"ChartBox";
 			this->ChartBox->Size = System::Drawing::Size(167, 100);
 			this->ChartBox->TabIndex = 6;
